@@ -54,7 +54,7 @@ namespace :trimmomatic do
   desc "Runs Trimmomatic quality trimming tool"
 
   file "results/#{@sample}/#{@R1_basename}_paired.fastq" => ["#{@read1}", "#{@read2}"] do
-    sh "source trimmomatic-0.36; source jre-1.7.0.11; trimmomatic PE -threads 2 -phred33 -trimlog results/#{@sample}/trimmomatic.log -quiet -validatePairs  #{@read1} #{@read2} results/#{@sample}/#{@R1_basename}_paired.fastq results/#{@sample}/#{@R1_basename}_unpaired.fastq results/#{@sample}/#{@R2_basename}_paired.fastq results/#{@sample}/#{@R2_basename}_unpaired.fastq ILLUMINACLIP:/usr/users/sl/kawashic/Medicago/mtr_bgi_fusedreads_parents_bulkS/TruSeq2-PE_CKedited.fa:2:30:10 LEADING:15 SLIDINGWINDOW:4:20 TRAILING:15 MINLEN:65"
+    sh "source trimmomatic-0.36; source jre-1.7.0.11; trimmomatic PE -threads 2 -phred33 -trimlog results/#{@sample}/trimmomatic.log -quiet -validatePairs  #{@read1} #{@read2} results/#{@sample}/#{@R1_basename}_paired.fastq results/#{@sample}/#{@R1_basename}_unpaired.fastq results/#{@sample}/#{@R2_basename}_paired.fastq results/#{@sample}/#{@R2_basename}_unpaired.fastq ILLUMINACLIP:TruSeq2-PE_CKedited.fa:2:30:10 LEADING:15 SLIDINGWINDOW:4:20 TRAILING:15 MINLEN:65"
   end
 
   file "results/#{@sample}/#{@R2_basename}_paired.fastq" => ["#{@read1}", "#{@read2}"] do
@@ -124,7 +124,7 @@ end
 
 namespace :Bowtie do
  file "results/#{@sample}/#{@sampleid}_aligned.sam" => ["#{@reference}", "results/#{@sample}/#{@R1_basename}_paired.fastq", "results/#{@sample}/#{@R2_basename}_paired.fastq" ] do
- sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 3 --reorder --no-mixed --no-discordant --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --rg \"sequencer:EI\" --un results/#{@sample}/#{@R1_basename}_unaligned_unpaired.fastq --un-conc results/#{@sample}/#{@R1_basename}_unconc.fastq  -x #{@reference} -1  results/#{@sample}/#{@R1_basename}_paired.fastq -2 results/#{@sample}/#{@R2_basename}_paired.fastq  -S results/#{@sample}/#{@sampleid}_aligned.sam 2> results/#{@sample}/#{@sampleid}_aligned.log; "
+ sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --no-mixed --no-discordant --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --rg \"sequencer:EI\" --un results/#{@sample}/#{@R1_basename}_unaligned_unpaired.fastq --un-conc results/#{@sample}/#{@R1_basename}_unconc.fastq  -x #{@reference} -1  results/#{@sample}/#{@R1_basename}_paired.fastq -2 results/#{@sample}/#{@R2_basename}_paired.fastq  -S results/#{@sample}/#{@sampleid}_aligned.sam 2> results/#{@sample}/#{@sampleid}_aligned.log; "
  end
 
  task :run => ["BowtieIndex:run", "results/#{@sample}/#{@sampleid}_aligned.sam"] do
@@ -192,11 +192,14 @@ namespace :samtools do
     puts "mpileup completed"
   end
 
-  task :run => [:sambam, :bedCoverage, :mpileup ] do
+  task :merge  => do
+
+  task :run => [:sambam, :bedCoverage, :mpileup, :merge ] do
     puts "Generating sambam and bedcoverage completed"
   end
 
 end
+
 
 namespace :VCF do
   file "results/#{@sample}/#{@sampleid}_snps_and_indels.vcf" => "results/#{@sample}/#{@sampleid}_mpileup.vcf" do
