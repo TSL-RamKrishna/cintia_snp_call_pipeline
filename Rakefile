@@ -186,11 +186,11 @@ namespace :samtools do
    system "source samtools-1.3.1; cd ${projectdir}; bamfiles=$(echo results/${samplename}/*_aligned.bam); samtools merge -r -u -f -c --reference $reference results/${sampleid}/aligned_merged.bam ${bamfiles}"
  end
 
- file "results/${sampleid}/aligned_mergedSorted.bam"  do
+ file "results/${sampleid}/aligned_mergedSorted.bam" => [ "results/${sampleid}/aligned_merged.bam" ] do
    system "source samtools-1.3.1; cd ${projectdir}; samtools sort --reference $reference -o results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_merged.bam"
  end
 
- file "results/${sampleid}/aligned_mergedSorted.bam.bai" do
+ file "results/${sampleid}/aligned_mergedSorted.bam.bai" => [ "results/${sampleid}/aligned_mergedSorted.bam" ] do
    system "source samtools-1.3.1; cd ${projectdir}; samtools index results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_mergedSorted.bam.bai"
  end
 
