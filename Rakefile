@@ -7,6 +7,7 @@ ENV["R2"] ? @read2 = ENV["R2"] : nil
 ENV["samplename"] ? @sample=ENV["samplename"] : nil
 ENV["sampleid"] ? @sampleid=ENV["sampleid"] : nil
 ENV["reference"] ? @reference=ENV["reference"] : nil
+ENV["projectdir"] ? @projectdir=ENV["projectdir"] : nil
 
 
 directory  "results"
@@ -180,6 +181,19 @@ namespace :samtools do
  end
 
 
+ #merge the bam files
+ file "results/${sampleid}/aligned_merged.bam"  do
+   system "source samtools-1.3.1; cd ${projectdir}; bamfiles=$(echo results/${samplename}/*_aligned.bam); samtools merge -r -u -f -c --reference $reference results/${sampleid}/aligned_merged.bam ${bamfiles}"
+ end
+
+ file "results/${sampleid}/aligned_mergedSorted.bam"  do
+   system "source samtools-1.3.1; cd ${projectdir}; samtools sort --reference $reference -o results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_merged.bam"
+ end
+
+ file "results/${sampleid}/aligned_mergedSorted.bam.bai" do
+   system "source samtools-1.3.1; cd ${projectdir}; samtools index results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_mergedSorted.bam.bai"
+ end
+
   task :sambam => ["results/#{@sample}/#{@sampleid}_aligned.bam", "results/#{@sample}/#{@sampleid}_alignedSorted.bam", "results/#{@sample}/#{@sampleid}_alignedSorted.bam.bai"] do
     puts "samtools conversion SAM -> BAM, Sort BAM and Index BAM completed"
   end
@@ -192,9 +206,10 @@ namespace :samtools do
     puts "mpileup completed"
   end
 
-  task :merge  => do
+  task :merge  => [ "results/${sampleid}/aligned_merged.bam", "results/${sampleid}/aligned_mergedSorted.bam", results/${sampleid}/aligned_mergedSorted.bam.bai ] do
+  end
 
-  task :run => [:sambam, :bedCoverage, :mpileup, :merge ] do
+  task :run => [:sambam, :bedCoverage, :mpileup] do
     puts "Generating sambam and bedcoverage completed"
   end
 
