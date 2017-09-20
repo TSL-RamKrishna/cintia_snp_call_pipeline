@@ -1,12 +1,18 @@
 ENV["R1"] ? @read1 = ENV["R1"] : nil
+#@read1 ? @R1_dir=ENV["R1"].pathmap("%d") : nil
+#@read1 ? @R1_basename=ENV["R1"].pathmap("%n") : nil
 @read1 ? @R1_basename  = "#{@read1}".split(".")[0].split("/")[-1] : nil
-
 ENV["R2"] ? @read2 = ENV["R2"] : nil
+#@read2 ? @R2_dir=ENV["R2"].pathmap("%d") :nil
+#@read2 ? @R2_basename=ENV["R2"].pathmap("%n") : nil
 @read2 ? @R2_basename = "#{@read2}".split(".")[0].split("/")[-1] : nil
-
 ENV["samplename"] ? @sample=ENV["samplename"] : nil
 ENV["sampleid"] ? @sampleid=ENV["sampleid"] : nil
 ENV["reference"] ? @reference=ENV["reference"] : nil
+
+ENV["Rreference"] ? @Rreference=ENV["Rreference"] : nil
+ENV["Sreference"] ? @Sreference=ENV["Sreference"] : nil
+
 ENV["projectdir"] ? @projectdir=ENV["projectdir"] : nil
 
 
@@ -42,8 +48,10 @@ namespace :fastqc  do
   task :R2 => ["results/#{@sample}/#{@R2_basename}_fastqc.html", "results/#{@sample}/#{@R2_basename}_fastqc.zip", "results/#{@sample}/#{@R2_basename}_fastqc"] do
     puts "R2 FASTQC completed"
   end
+  task :runR1 => ["R1"] #these tasks are in case if you are running single end reads
+  task :runR2 => ["R2"]
 
-  task :run => ["R1", "R2"] do
+  multitask :run => [:runR1, :runR2] do
     puts "FASTQC completed"
   end
 
@@ -54,14 +62,14 @@ end
 namespace :trimmomatic do
   desc "Runs Trimmomatic quality trimming tool"
 
-  file "results/#{@sample}/#{@R1_basename}_paired.fastq" => ["#{@read1}", "#{@read2}"] do
-    sh "source trimmomatic-0.36; source jre-1.7.0.11; trimmomatic PE -threads 2 -phred33 -trimlog results/#{@sample}/trimmomatic.log -quiet -validatePairs  #{@read1} #{@read2} results/#{@sample}/#{@R1_basename}_paired.fastq results/#{@sample}/#{@R1_basename}_unpaired.fastq results/#{@sample}/#{@R2_basename}_paired.fastq results/#{@sample}/#{@R2_basename}_unpaired.fastq ILLUMINACLIP:TruSeq2-PE_CKedited.fa:2:30:10 LEADING:15 SLIDINGWINDOW:4:20 TRAILING:15 MINLEN:65"
+  file "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq" => ["#{@read1}", "#{@read2}"] do
+    sh "source trimmomatic-0.36; source jre-1.7.0.11; trimmomatic PE -threads 2 -phred33 -trimlog results/#{@sample}/trimmomatic.log -quiet -validatePairs  #{@read1} #{@read2} results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq results/#{@sample}/#{@R1_basename}_unpaired.fastq results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq results/#{@sample}/#{@R2_basename}_unpaired.fastq ILLUMINACLIP:TruSeq2-PE_CKedited.fa:2:30:10 LEADING:15 SLIDINGWINDOW:4:20 TRAILING:15 MINLEN:65"
   end
 
-  file "results/#{@sample}/#{@R2_basename}_paired.fastq" => ["#{@read1}", "#{@read2}"] do
+  file "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq" => ["#{@read1}", "#{@read2}"] do
   end
 
-  task :run =>  ["fastqc:run", "results/#{@sample}/#{@R1_basename}_paired.fastq", "results/#{@sample}/#{@R2_basename}_paired.fastq"] do
+  multitask :run =>  ["fastqc:run", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq", "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
     puts "Trimmomatic completed"
   end
 
@@ -104,6 +112,7 @@ end
 #end
 
 namespace :BowtieIndex do
+
  file "#{@reference}.1.bt2" => ["#{@reference}"] do
    sh "source bowtie2-2.1.0;  bowtie2-build -f   #{@reference}  #{@reference} "
  end
@@ -121,107 +130,205 @@ namespace :BowtieIndex do
  task :run => ["#{@reference}.1.bt2", "#{@reference}.2.bt2", "#{@reference}.3.bt2", "#{@reference}.4.bt2", "#{@reference}.rev.1.bt2", "#{@reference}.rev.2.bt2" ] do
    puts "Bowtie reference indexing completed"
  end
+
+
+
+ file "#{@Rreference}.1.bt2" => ["#{@Rreference}"] do
+   sh "source bowtie2-2.1.0;  bowtie2-build -f   #{@Rreference}  #{@Rreference} "
+ end
+ file "#{@Rreference}.2.bt2" => ["#{@Rreference}"] do
+ end
+ file "#{@Rreference}.3.bt2" => ["#{@Rreference}"] do
+ end
+ file "#{@Rreference}.4.bt2" => ["#{@Rreference}"] do
+ end
+ file "#{@Rreference}.rev.1.bt2" => ["#{@Rreference}"] do
+ end
+ file "#{@Rreference}.rev.2.bt2" => ["#{@Rreference}"] do
+ end
+
+
+ task :resistance_run => ["#{@Rreference}.1.bt2", "#{@Rreference}.2.bt2", "#{@Rreference}.3.bt2", "#{@Rreference}.4.bt2", "#{@Rreference}.rev.1.bt2", "#{@Rreference}.rev.2.bt2" ] do
+   puts "Bowtie Resistance reference indexing completed"
+ end
+
+ file "#{@Sreference}.1.bt2" => ["#{@Sreference}"] do
+   sh "source bowtie2-2.1.0;  bowtie2-build -f   #{@Sreference}  #{@Sreference} "
+ end
+ file "#{@Sreference}.2.bt2" => ["#{@Sreference}"] do
+ end
+ file "#{@Sreference}.3.bt2" => ["#{@Sreference}"] do
+ end
+ file "#{@Sreference}.4.bt2" => ["#{@Sreference}"] do
+ end
+ file "#{@Sreference}.rev.1.bt2" => ["#{@Sreference}"] do
+ end
+ file "#{@Sreference}.rev.2.bt2" => ["#{@Sreference}"] do
+ end
+
+ task :susceptible_run => ["#{@Sreference}.1.bt2", "#{@Sreference}.2.bt2", "#{@Sreference}.3.bt2", "#{@Sreference}.4.bt2", "#{@Sreference}.rev.1.bt2", "#{@Sreference}.rev.2.bt2" ] do
+   puts "Bowtie Susceptible reference indexing completed"
+ end
+
 end
 
+
+
+
+
 namespace :Bowtie do
- file "results/#{@sample}/#{@sampleid}_aligned.sam" => ["#{@reference}", "results/#{@sample}/#{@R1_basename}_paired.fastq", "results/#{@sample}/#{@R2_basename}_paired.fastq" ] do
- sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --no-mixed --no-discordant --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --rg \"sequencer:EI\" --un results/#{@sample}/#{@R1_basename}_unaligned_unpaired.fastq --un-conc results/#{@sample}/#{@R1_basename}_unconc.fastq  -x #{@reference} -1  results/#{@sample}/#{@R1_basename}_paired.fastq -2 results/#{@sample}/#{@R2_basename}_paired.fastq  -S results/#{@sample}/#{@sampleid}_aligned.sam 2> results/#{@sample}/#{@sampleid}_aligned.log; "
+  directory "results/#{@sample}/mappedToRparent"
+  directory "results/#{@sample}/mappedToSusparent"
+
+  file "#{@Rreference}.dict" => ["#{@Rreference}"] do
+    sh "source samtools-1.3.1; samtools dict -o #{@Rreference}.dict #{@Rreference}"
+  end
+  file "#{@Sreference}.dict" => ["#{@Sreference}"] do
+    sh "source samtools-1.3.1; samtools dict -o #{@Sreference}.dict #{@Sreference}"
+  end
+
+ file "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam" => ["BowtieIndex:resistance_run", "results/#{@sample}/mappedToRparent", "#{@Rreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
+  sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --no-unal -x #{@Rreference} -1 results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq -2 results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq -S results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.sam 2> results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.log; "
  end
 
- task :run => ["BowtieIndex:run", "results/#{@sample}/#{@sampleid}_aligned.sam"] do
-   puts "Bowtie mapping completed"
+ file "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam" => [ "#{@Rreference}.dict", "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam" ] do
+   sh "source samtools-1.3.1; samtools view -bS -t #{@Rreference}.dict -o results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam"
  end
+
+ file "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam" => ["BowtieIndex:susceptible_run", "results/#{@sample}/mappedToSusparent", "#{@Sreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
+  sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --no-unal -x #{@Sreference} -1 results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq -2 results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq -S results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.sam 2> results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.log; "
+ end
+
+ file "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam" => ["#{@Sreference}.dict", "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam" ] do
+   sh "source samtools-1.3.1; samtools view -bS -t #{@Sreference}.dict -o results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam"
+ end
+
+
+ multitask :run => ["results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam", "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam"] do
+   puts "Bowtie mapping completed. SAM file converted to BAM. Original SAM file removed."
+ end
+
+ #file "results/#{@sample}/#{@sampleid}_aligned.sam" => ["#{@reference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq", "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq" ] do
+ #sh "source bowtie2-2.1.0; source samtools-1.3.1; bowtie2 -q --phred33 -k 1 --reorder --no-mixed --no-discordant --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --rg \"sequencer:EI\" --un results/#{@sample}/#{@R1_basename}_unaligned_unpaired.fastq --un-conc results/#{@sample}/#{@R1_basename}_unconc.fastq  -x #{@reference} -1  results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq -2 results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq  -S #results/#{@sample}/#{@sampleid}_aligned.sam 2> results/#{@sample}/#{@sampleid}_aligned.log "
+ #end
+
 end
 
 namespace :samtools do
-  desc "create dict of reference"
 
-  file "#{@reference}.dict" => ["#{@reference}"] do
-    system "source samtools-1.3.1; samtools dict #{@reference} > #{@reference}.dict"
-  end
-  desc "Index the reference sequence"
-  file "#{@reference}.fai" => ["#{@reference}"] do
-    system "source samtools-1.3.1; samtools faidx #{@reference} > #{@reference}.fai"
-  end
-  desc "convert sam to bam"
-  file "results/#{@sample}/#{@sampleid}_aligned.bam" => ["#{@reference}.dict"] do
-    system "source samtools-1.3.1; samtools view -bS -t #{@reference}.dict -o results/#{@sample}/#{@sampleid}_aligned.bam results/#{@sample}/#{@sampleid}_aligned.sam "
-  end
+  directory "results/#{@sample}/mappedToRparent/mergedbams"
+  directory "results/#{@sample}/mappedToSusparent/mergedbams"
+  #----------------------------------------------------------------------------------------------------------------------
+  rsamfiles=FileList["results/#{@sample}/mappedToRparent/*_paired_aligned.sam"]
+  rbamfiles=rsamfiles.pathmap("%X.bam")
+  rbamfiles_sorted=rsamfiles.pathmap("%XSorted.bam")
+  rindexedfiles=rsamfiles.pathmap("%XSorted.bam.bai")
+  rmerged=rsamfiles.pathmap("%d/merged.bam")
+  rmerged_sorted=rsamfiles.pathmap("%d/merged_sorted.bam")
+  rmerged_sorted_bai=rsamfiles.pathmap("%d/merged_sorted.bam.bai")
 
-  desc "sort BAM file"
-  file "results/#{@sample}/#{@sampleid}_alignedSorted.bam" => ["results/#{@sample}/#{@sampleid}_aligned.bam"] do
-    system "source samtools-1.3.1; samtools sort results/#{@sample}/#{@sampleid}_aligned.bam > results/#{@sample}/#{@sampleid}_alignedSorted.bam"
-  end
+  rsamfiles.zip(rbamfiles, rbamfiles_sorted, rindexedfiles).each do |rsam, rbam, rsorted, rbai|
+    file rbam => [rsam] do
+      sh "source samtools-1.3.1; samtools view -b -h -o #{rbam} -q 30 --threads 4 #{rsam}"
+    end
+    file rsorted => [rbam] do
+      sh "source samtools-1.3.1;  samtools sort --threads 4 -O bam -o #{rsorted} #{rbam} "
+    end
 
-  desc "Index BAM file"
-  file "results/#{@sample}/#{@sampleid}_alignedSorted.bam.bai" => ["results/#{@sample}/#{@sampleid}_alignedSorted.bam"] do
-    system "source samtools-1.3.1; samtools index -b results/#{@sample}/#{@sampleid}_alignedSorted.bam > results/#{@sample}/#{@sampleid}_alignedSorted.bam.bai"
-  end
-
-  desc "Convert  BAM TO BED"
-  file "results/#{@sample}/#{@sampleid}_alignedSorted.bed" => ["results/#{@sample}/#{@sampleid}_alignedSorted.bam"] do
-    sh "source bedtools-2.20.1; bedtools bamtobed -i results/#{@sample}/#{@sampleid}_alignedSorted.bam > results/#{@sample}/#{@sampleid}_alignedSorted.bed"
+    file rbai => [rsorted] do
+      sh "source samtools-1.3.1; samtools index #{rsorted} #{rbai}"
+    end
   end
 
-  #desc "Get bedCov from bed file"
-  #file "results/#{@sample}/alignedSorted.bedCov" => ["results/#{@sample}/alignedSorted.bed", "results/#{@sample}/alignedSorted.bam"] do
-  #  sh "source samtools-1.3.1; samtools bedcov -Q 20 results/#{@sample}/alignedSorted.bed results/#{@sample}/alignedSorted.bam > results/#{@sample}/alignedSorted.bedCov"
+
+  #-----------------------------------------------------------------------------------------------------------------------
+  s_samfiles=FileList["results/#{@sample}/mappedToSusparent/*_paired_aligned.sam"]
+  s_bamfiles=s_samfiles.pathmap("%X.bam")
+  s_bamfiles_sorted=s_samfiles.pathmap("%XSorted.bam")
+  s_indexedfiles=s_samfiles.pathmap("%XSorted.bam.bai")
+  s_merged=s_samfiles.pathmap("%d/merged.bam")
+  s_merged_sorted=s_samfiles.pathmap("%d/merged_sorted.bam")
+  s_merged_sorted_bai=s_samfiles.pathmap("%d/merged_sorted.bam.bai")
+
+  s_samfiles.zip(s_bamfiles, s_bamfiles_sorted, s_indexedfiles).each do |s_sam, s_bam, s_sorted, s_bai|
+    file s_bam => [s_sam] do
+      sh "source samtools-1.3.1; samtools view -b -h -o #{s_bam} -q 30 --threads 4 #{s_sam}"
+    end
+    file s_sorted => [s_bam] do
+      sh "source samtools-1.3.1;  samtools sort --threads 4 -O bam -o #{s_sorted} #{s_bam} "
+    end
+
+    file s_bai => [s_sorted] do
+      sh "source samtools-1.3.1; samtools index #{s_sorted} #{s_bai}"
+    end
+  end
+
+  #-------------------------------------------------------------------------------------------------------------------
+
+  file "results/#{@sample}/mappedToRparent/mergedbams/merged.bam" =>  rbamfiles  do
+    sh "source samtools-1.3.1; samtools merge -r -O BAM --reference #{@Rreference} #{rbamfiles}"
+  end
+  file "results/#{@sample}/mappedToSusparent/mergedbams/merged.bam" => s_bamfiles  do
+    sh "source samtools-1.3.1; samtools merge -r -O BAM --reference #{@Sreference} #{s_bamfiles}"
+  end
+  #-------------------------------------------------------------------------------------------------------------------
+
+  #file "results/#{@sample}/mergedbams/merged.bam" => [:convert, "results/#{@sample}/mergedbams"] do
+  #  sh "source samtools-1.3.1; samtools merge -n -r -f --threads 4 -O BAM --reference #{@reference} results/#{@sample}/mergedbams/merged.bam #{bamfiles_sorted}"
   #end
 
-  file "results/#{@sample}/#{@sampleid}_alignedSorted.genomecov.bed" => ["results/#{@sample}/#{@sampleid}_alignedSorted.bam"] do
-    sh "source bedtools-2.20.1; bedtools genomecov -d -ibam results/#{@sample}/#{@sampleid}_alignedSorted.bam | awk '{if($3>=1){print}}' > results/#{@sample}/#{@sampleid}_alignedSorted.genomecov.bed"
-  end
+	file  "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam" =>  "results/#{@sample}/mappedToRparent/mergedbams/merged.bam" do
+		sh "source samtools-1.3.1; samtools sort --reference #{@reference} --threads 4 -O bam -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToRparent/mergedbams/merged.bam"
+	end
+  file  "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam" =>  "results/#{@sample}/mappedToSusparent/mergedbams/merged.bam" do
+		sh "source samtools-1.3.1; samtools sort --reference #{@reference} --threads 4 -O bam -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToSusparent/mergedbams/merged.bam"
+	end
 
+	file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"] do
+		sh "source samtools-1.3.1; samtools index results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai"
+	end
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai" => ["results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam"] do
+		sh "source samtools-1.3.1; samtools index results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai"
+	end
+
+  multitask :rmerge => [ "results/#{@sample}/mappedToRparent/mergedbams", "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai"]
+
+  multitask :s_merge => [ "results/#{@sample}/mappedToSusparent/mergedbams", "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai"]
+
+	multitask merge: [:rmerge, :s_merge]
 
   desc "create mpileup from the bam file"
-  file "results/#{@sample}/#{@sampleid}_mpileup.vcf" => ["results/#{@sample}/#{@sampleid}_alignedSorted.bam", "#{@reference}"] do
-    #sh "samtools mpileup -q 20 -Q 15 -d #{@depth} -Bf #{@reference} results/#{@sample}/alignSorted.bam > #{@outdir}/alignedSorted.pileup 2>> #{@outdir}/rake_log.txt"
-    sh "source samtools-1.3.1; samtools mpileup -f #{@reference} results/#{@sample}/#{@sampleid}_alignedSorted.bam -C 20 -d 250 -q 20 -Q 13 -O -s --output results/#{@sample}/#{@sampleid}_mpileup.vcf"
-    #samtools mpileup -B -f #{@reference}   sample1/sample1.realigned.bam sample2/sample2.realigned.bam sample3/sample3.realigned.bam | varscan mpileup2cns --min-coverage 2 --min-reads2 3 --min-avg_qual 20 --min-var-freq 0.8 --p-value 0.005 --variants --output-vcf > variants.vcf
+   file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf" => [:rmerge] do
+     sh "source samtools-1.3.1; samtools mpileup --skip-indels -d 250 -m 1 -E --BCF -f #{@reference} --output results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"
+  end
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf" => [:s_merge] do
+    sh "source samtools-1.3.1; samtools mpileup --skip-indels -d 250 -m 1 -E --BCF -f #{@reference} --output results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam"
  end
 
-
- #merge the bam files
- file "results/${sampleid}/aligned_merged.bam"  do
-   system "source samtools-1.3.1; cd ${projectdir}; bamfiles=$(echo results/${samplename}/*_aligned.bam); samtools merge -r -u -f -c --reference $reference results/${sampleid}/aligned_merged.bam ${bamfiles}"
- end
-
- file "results/${sampleid}/aligned_mergedSorted.bam" => [ "results/${sampleid}/aligned_merged.bam" ] do
-   system "source samtools-1.3.1; cd ${projectdir}; samtools sort --reference $reference -o results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_merged.bam"
- end
-
- file "results/${sampleid}/aligned_mergedSorted.bam.bai" => [ "results/${sampleid}/aligned_mergedSorted.bam" ] do
-   system "source samtools-1.3.1; cd ${projectdir}; samtools index results/${sampleid}/aligned_mergedSorted.bam results/${sampleid}/aligned_mergedSorted.bam.bai"
- end
-
-  task :sambam => ["results/#{@sample}/#{@sampleid}_aligned.bam", "results/#{@sample}/#{@sampleid}_alignedSorted.bam", "results/#{@sample}/#{@sampleid}_alignedSorted.bam.bai"] do
-    puts "samtools conversion SAM -> BAM, Sort BAM and Index BAM completed"
+  file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted_indexed.bcf" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"] do
+    sh "source bcftools-1.3.1; bcftools index --force results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf > results/#{@sample}/mappedToRparent/mergedbams/mergedSorted_indexed.bcf"
+  end
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted_indexed.bcf" => ["results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"] do
+    sh "source bcftools-1.3.1; bcftools index --force results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf > results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted_indexed.bcf"
   end
 
-  task :bedCoverage => ["results/#{@sample}/#{@sampleid}_alignedSorted.bed", "results/#{@sample}/#{@sampleid}_alignedSorted.genomecov.bed"] do
-    puts "BedCoverage completed"
+  file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"] do
+    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"
+  end
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf" => ["results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"] do
+    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"
   end
 
-  task :mpileup => ["results/#{@sample}/#{@sampleid}_alignedSorted.vcf"] do
-    puts "mpileup completed"
-  end
-
-  task :merge  => [ "results/${sampleid}/aligned_merged.bam", "results/${sampleid}/aligned_mergedSorted.bam", results/${sampleid}/aligned_mergedSorted.bam.bai ] do
-  end
-
-  task :run => [:sambam, :bedCoverage, :mpileup] do
-    puts "Generating sambam and bedcoverage completed"
-  end
+  task :get_snps => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf", "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf"]
 
 end
 
-
-namespace :VCF do
-  file "results/#{@sample}/#{@sampleid}_snps_and_indels.vcf" => "results/#{@sample}/#{@sampleid}_mpileup.vcf" do
-    sh "varscan mpileup2cns results/#{@sample}/#{@sampleid}_mpileup.vcf --min-coverage 2 --min-reads2 3 --min-avg_qual 20 --min-var-freq 0.8 --p-value 0.005 --variants --output-vcf > #{@sampleid}_snps_and_indels.vcf"
+namespace :vcf do
+  file "results/#{@sample}/#{@sampleid}_snps.vcf" => "results/#{@sample}/#{@sampleid}_indexed.bcf" do
+    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/#{@sampleid}_snps.vcf results/#{@sample}/#{@sampleid}.bcf"
   end
-  task :run => "results/#{@sample}/#{@sampleid}_snps_and_indels.vcf" do
-    puts "Consensus and Variants (SNPs and indels) call completed "
+  task :run => "results/#{@sample}/#{@sampleid}_snps.vcf" do
+    puts "SNPs call completed "
   end
 end
 
@@ -229,6 +336,6 @@ task :run_pipeline => [ "fastqc:run", "trimmomatic:run", "Bowtie:run", "samtools
   puts "Pipeline completed"
 end
 
-task :default => [ "fastqc:run", "trimmomatic:run", "Bowtie:run"] do
+task :default => [ "samtools:get_snps"] do
   puts "Pipeline completed"
 end
