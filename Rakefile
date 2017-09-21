@@ -187,24 +187,24 @@ namespace :Bowtie do
     sh "source samtools-1.3.1; samtools dict -o #{@Sreference}.dict #{@Sreference}"
   end
 
- file "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam" => ["BowtieIndex:resistance_run", "results/#{@sample}/mappedToRparent", "#{@Rreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
+ file "results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.sam" => ["BowtieIndex:resistance_run", "results/#{@sample}/mappedToRparent", "#{@Rreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
   sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --no-unal -x #{@Rreference} -1 results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq -2 results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq -S results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.sam 2> results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.log; "
  end
 
- file "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam" => [ "#{@Rreference}.dict", "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam" ] do
-   sh "source samtools-1.3.1; samtools view -bS -t #{@Rreference}.dict -o results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.sam"
+ file "results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.bam" => [ "#{@Rreference}.dict", "results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.sam" ] do
+   sh "source samtools-1.3.1; samtools view -bS -t #{@Rreference}.dict -o results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.bam results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.sam"
  end
 
- file "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam" => ["BowtieIndex:susceptible_run", "results/#{@sample}/mappedToSusparent", "#{@Sreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
+ file "results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.sam" => ["BowtieIndex:susceptible_run", "results/#{@sample}/mappedToSusparent", "#{@Sreference}", "results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq",  "results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq"] do
   sh "source bowtie2-2.1.0; bowtie2 -q --phred33 -k 1 --reorder --very-sensitive-local --no-unal --rg-id #{@sampleid} --rg \"platform:Illumina\" --no-unal -x #{@Sreference} -1 results/#{@sample}/#{@R1_basename}_trimmed_paired.fastq -2 results/#{@sample}/#{@R2_basename}_trimmed_paired.fastq -S results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.sam 2> results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.log; "
  end
 
- file "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam" => ["#{@Sreference}.dict", "results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam" ] do
-   sh "source samtools-1.3.1; samtools view -bS -t #{@Sreference}.dict -o results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.sam"
+ file "results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.bam" => ["#{@Sreference}.dict", "results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.sam" ] do
+   sh "source samtools-1.3.1; samtools view -bS -t #{@Sreference}.dict -o results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.bam results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.sam"
  end
 
 
- multitask :run => ["results/#{@sample}/mappedToSusparent/#{@sampleid}_aligned.bam", "results/#{@sample}/mappedToRparent/#{@sampleid}_aligned.bam"] do
+ multitask :run => ["results/#{@sample}/mappedToSusparent/#{@sampleid}_paired_aligned.bam", "results/#{@sample}/mappedToRparent/#{@sampleid}_paired_aligned.bam"] do
    puts "Bowtie mapping completed. SAM file converted to BAM. Original SAM file removed."
  end
 
@@ -265,11 +265,11 @@ namespace :samtools do
 
   #-------------------------------------------------------------------------------------------------------------------
 
-  file "results/#{@sample}/mappedToRparent/mergedbams/merged.bam" =>  rbamfiles  do
-    sh "source samtools-1.3.1; samtools merge -r -O BAM --reference #{@Rreference} #{rbamfiles}"
+  file "results/#{@sample}/mappedToRparent/mergedbams/merged.bam" =>  rindexedfiles  do
+    sh "source samtools-1.3.1; samtools merge -f -r -O BAM --reference #{@Rreference} results/#{@sample}/mappedToRparent/mergedbams/merged.bam #{rbamfiles_sorted}"
   end
-  file "results/#{@sample}/mappedToSusparent/mergedbams/merged.bam" => s_bamfiles  do
-    sh "source samtools-1.3.1; samtools merge -r -O BAM --reference #{@Sreference} #{s_bamfiles}"
+  file "results/#{@sample}/mappedToSusparent/mergedbams/merged.bam" => s_indexedfiles  do
+    sh "source samtools-1.3.1; samtools merge -f -r -O BAM --reference #{@Sreference} results/#{@sample}/mappedToSusparent/mergedbams/merged.bam #{s_bamfiles_sorted}"
   end
   #-------------------------------------------------------------------------------------------------------------------
 
@@ -278,10 +278,10 @@ namespace :samtools do
   #end
 
 	file  "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam" =>  "results/#{@sample}/mappedToRparent/mergedbams/merged.bam" do
-		sh "source samtools-1.3.1; samtools sort --reference #{@reference} --threads 4 -O bam -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToRparent/mergedbams/merged.bam"
+		sh "source samtools-1.3.1; samtools sort --reference #{@Rreference} --threads 4 -O bam -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToRparent/mergedbams/merged.bam"
 	end
   file  "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam" =>  "results/#{@sample}/mappedToSusparent/mergedbams/merged.bam" do
-		sh "source samtools-1.3.1; samtools sort --reference #{@reference} --threads 4 -O bam -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToSusparent/mergedbams/merged.bam"
+		sh "source samtools-1.3.1; samtools sort --reference #{@Sreference} --threads 4 -O bam -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToSusparent/mergedbams/merged.bam"
 	end
 
 	file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"] do
