@@ -8,6 +8,7 @@ ENV["R2"] ? @read2 = ENV["R2"] : nil
 @read2 ? @R2_basename = "#{@read2}".split(".")[0].split("/")[-1] : nil
 ENV["samplename"] ? @sample=ENV["samplename"] : nil
 ENV["sampleid"] ? @sampleid=ENV["sampleid"] : nil
+ENV["sbulksample"] ? @sbulksample=ENV["sbulksample"] : nil
 ENV["reference"] ? @reference=ENV["reference"] : nil
 
 ENV["Rreference"] ? @Rreference=ENV["Rreference"] : nil
@@ -58,7 +59,6 @@ namespace :fastqc  do
 
 end
 
-
 namespace :trimmomatic do
   desc "Runs Trimmomatic quality trimming tool"
 
@@ -74,7 +74,6 @@ namespace :trimmomatic do
   end
 
 end
-
 
 namespace :BWAindex do
   desc "Creates BWA reference index"
@@ -172,10 +171,6 @@ namespace :BowtieIndex do
 
 end
 
-
-
-
-
 namespace :Bowtie do
   directory "results/#{@sample}/mappedToRparent"
   directory "results/#{@sample}/mappedToSusparent"
@@ -223,9 +218,9 @@ namespace :samtools do
   rbamfiles=rsamfiles.pathmap("%X.bam")
   rbamfiles_sorted=rsamfiles.pathmap("%XSorted.bam")
   rindexedfiles=rsamfiles.pathmap("%XSorted.bam.bai")
-  rmerged=rsamfiles.pathmap("%d/merged.bam")
-  rmerged_sorted=rsamfiles.pathmap("%d/merged_sorted.bam")
-  rmerged_sorted_bai=rsamfiles.pathmap("%d/merged_sorted.bam.bai")
+  Rmerged=rsamfiles.pathmap("%d/merged.bam")
+  Rmerged_sorted=rsamfiles.pathmap("%d/merged_sorted.bam")
+  Rmerged_sorted_bai=rsamfiles.pathmap("%d/merged_sorted.bam.bai")
 
   rsamfiles.zip(rbamfiles, rbamfiles_sorted, rindexedfiles).each do |rsam, rbam, rsorted, rbai|
     file rbam => [rsam] do
@@ -246,9 +241,9 @@ namespace :samtools do
   s_bamfiles=s_samfiles.pathmap("%X.bam")
   s_bamfiles_sorted=s_samfiles.pathmap("%XSorted.bam")
   s_indexedfiles=s_samfiles.pathmap("%XSorted.bam.bai")
-  s_merged=s_samfiles.pathmap("%d/merged.bam")
-  s_merged_sorted=s_samfiles.pathmap("%d/merged_sorted.bam")
-  s_merged_sorted_bai=s_samfiles.pathmap("%d/merged_sorted.bam.bai")
+  Smerged=s_samfiles.pathmap("%d/merged.bam")
+  Smerged_sorted=s_samfiles.pathmap("%d/merged_sorted.bam")
+  Smerged_sorted_bai=s_samfiles.pathmap("%d/merged_sorted.bam.bai")
 
   s_samfiles.zip(s_bamfiles, s_bamfiles_sorted, s_indexedfiles).each do |s_sam, s_bam, s_sorted, s_bai|
     file s_bam => [s_sam] do
@@ -291,18 +286,20 @@ namespace :samtools do
 		sh "source samtools-1.3.1; samtools index results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai"
 	end
 
-  multitask :rmerge => [ "results/#{@sample}/mappedToRparent/mergedbams", "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai"]
+  multitask :Rmerge => [ "results/#{@sample}/mappedToRparent/mergedbams", "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam.bai"]
 
-  multitask :s_merge => [ "results/#{@sample}/mappedToSusparent/mergedbams", "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai"]
+  multitask :Smerge => [ "results/#{@sample}/mappedToSusparent/mergedbams", "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam.bai"]
 
-	multitask merge: [:rmerge, :s_merge]
+	multitask merge: [:Rmerge, :Smerge] do
+	  puts "Merging done"
+	end
 
   desc "create mpileup from the bam file"
-   file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf" => [:rmerge] do
-     sh "source samtools-1.3.1; samtools mpileup --skip-indels -d 250 -m 1 -E --BCF -f #{@reference} --output results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"
+   file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf" => [:Rmerge] do
+     sh "source samtools-1.3.1; samtools mpileup -d 250 -m 1 -E --BCF -f #{@Rreference} --output results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"
   end
-  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf" => [:s_merge] do
-    sh "source samtools-1.3.1; samtools mpileup --skip-indels -d 250 -m 1 -E --BCF -f #{@reference} --output results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam"
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf" => [:Smerge] do
+    sh "source samtools-1.3.1; samtools mpileup  -d 250 -m 1 -E --BCF -f #{@Sreference} --output results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam"
  end
 
   file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted_indexed.bcf" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"] do
@@ -311,25 +308,54 @@ namespace :samtools do
   file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted_indexed.bcf" => ["results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"] do
     sh "source bcftools-1.3.1; bcftools index --force results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf > results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted_indexed.bcf"
   end
-
+  desc "mapped to Rparent"
   file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf" => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"] do
-    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"
+    sh "source bcftools-1.3.1; bcftools call --multiallelic-caller -O v -o results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bcf"
   end
+  desc "mapped to Sparent"
   file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf" => ["results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"] do
-    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"
+    sh "source bcftools-1.3.1; bcftools call --keep-alts --prior-freqs --multiallelic-caller -O v -o results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bcf"
+  end
+
+  #get VCF mpileup directly
+  desc "generate mpileup for Rparent"
+  file "results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.mpileup" => [:Rmerge] do
+    sh "source samtools-1.3.1; samtools mpileup --fasta-ref #{@Rreference} --VCF -u --output-MQ --output-BP --output-tags DP,AD,ADF,ADR,SP --reference #{@Rreference} --output results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.mpileup results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.bam"
+  end
+  desc "generate mpileup for Sparent"
+  file "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.mpileup" => [:Smerge] do
+    sh "source samtools-1.3.1; samtools mpileup --fasta-ref #{@Sreference} --VCF -u --output-MQ --output-BP --output-tags DP,AD,ADF,ADR,SP --reference #{@Sreference} --output results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.mpileup results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.bam"
   end
 
   task :get_snps => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.vcf", "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.vcf"]
+  multitask :get_mpileups => ["results/#{@sample}/mappedToRparent/mergedbams/mergedSorted.mpileup",  "results/#{@sample}/mappedToSusparent/mergedbams/mergedSorted.mpileup"]
 
 end
 
-namespace :vcf do
-  file "results/#{@sample}/#{@sampleid}_snps.vcf" => "results/#{@sample}/#{@sampleid}_indexed.bcf" do
-    sh "source bcftools-1.3.1; bcftools call --skip-variants indels --multiallelic-caller --variants-only  -O v -o results/#{@sample}/#{@sampleid}_snps.vcf results/#{@sample}/#{@sampleid}.bcf"
+namespace :filtersnps do
+
+  file "results/common_Sparent108_#{@sbulksample}_mappedToRparent.vcf" => ["results/Sparent108/mappedToRparent/mergedbams/mergedSorted.vcf", "results/#{@sbulksample}/mappedToRparent/mergedbams/mergedSorted.vcf"] do
+    sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Sparent108/mappedToRparent/mergedbams/mergedSorted.vcf -2 results/#{@sbulksample}/mappedToRparent/mergedbams/mergedSorted.vcf --common --vcfout --refaltdiff --out result/common_Sparent108_Sbulk293_mappedToRparent.vcf"
   end
-  task :run => "results/#{@sample}/#{@sampleid}_snps.vcf" do
-    puts "SNPs call completed "
+  file "results/alternate_mappedToRparent.vcf" => ["results/Rparent614/mappedToRparent/mergedbams/mergedSorted.vcf", "results/common_Sparent108_#{@sbulksample}_mappedToRparent.vcf"] do
+    sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Rparent614/mappedToRparent/mergedbams/mergedSorted.vcf -2 results/common_Sparent108_#{@sbulksample}_mappedToRparent.vcf --alternate --vcfout --out results/alternate_mappedToRparent.vcf"
   end
+  file "results/alternate_mappedToRparent_filtered.vcf" => ["results/alternate_mappedToRparent.vcf"] do
+    sh "python scripts/filter_vcf.py /tsl/scratch/kawashic/Mt_ASR_R_contigs_referenceEdena.fasta.fai results/alternate_mappedToRparent.vcf results/alternate_mappedToRparent_filtered.vcf"
+  end
+  file "results/common_Sparent108_#{@sbulksample}_mappedToSusparent.vcf" => ["results/Sparent108/mappedToSusparent/mergedbams/mergedSorted.vcf", "results/#{@sbulksample}/mappedToSusparent/mergedbams/mergedSorted.vcf"] do
+    sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Sparent108/mappedToSusparent/mergedbams/mergedSorted.vcf -2 results/#{@sbulksample}/mappedToSusparent/mergedbams/mergedSorted.vcf --common --vcfout --refaltsame --out results/common_Sparent108_Sbulk293_mappedToSusparent.vcf"
+  end
+  file "results/alternate_mappedToSusparent.vcf" => ["results/Rparent614/mappedToSusparent/mergedbams/mergedSorted.vcf", "results/common_Sparent108_#{@sbulksample}_mappedToSusparent.vcf"] do
+    sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Rparent614/mappedToSusparent/mergedbams/mergedSorted.vcf -2  results/common_Sparent108_#{@sbulksample}_mappedToSusparent.vcf --alternate --vcfout --out results/alternate_mappedToSusparent.vcf"
+  end
+  file "results/alternate_mappedToSusparent_filtered.vcf" => ["results/alternate_mappedToSusparent.vcf"] do
+    sh "python ~/workarea/kawashic/scripts/filter_vcf.py /tsl/scratch/kawashic/Mt_ASR_R_contigs_referenceEdena.fasta.fai alternate_mappedToSusparent.vcf alternate_mappedToSusparent_filtered.vcf"
+  end
+
+  task :mappedToRparent => ["results/alternate_mappedToRparent.vcf"]
+  task :mappedToSusparent => ["results/alternate_mappedToSusparent.vcf"]
+  task :run => [:mappedToRparent, :mappedToSusparent]
 end
 
 task :run_pipeline => [ "fastqc:run", "trimmomatic:run", "Bowtie:run", "samtools:run", "VCF:run"] do
