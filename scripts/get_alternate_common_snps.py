@@ -209,12 +209,12 @@ class compare_2_vcfs():
         self.open_input_files()
 
         vcf1chr, vcf1pos, vcf1ref, vcf1alt = self.get_vcf1_linearray()
-
+        vcf2chr, vcf2pos, vcf2ref, vcf2alt = self.get_vcf2_linearray()
 
         while True:
             if vcf1alt == ".":
                 vcf1alt = vcf1ref
-            vcf2chr, vcf2pos, vcf2ref, vcf2alt = self.get_vcf2_linearray()
+
             if vcf2alt == ".":
                 vcf2alt = vcf2ref
 
@@ -229,7 +229,7 @@ class compare_2_vcfs():
                     vcf2chr, vcf2pos, vcf2ref, vcf2alt = self.get_vcf2_linearray()
 
                 elif int(vcf1pos) == int(vcf2pos):
-                    print vcf1chr, vcf1pos, vcf1alt, vcf2chr, vcf2pos, vcf2alt
+                    #print vcf1chr, vcf1pos, vcf1alt, vcf2chr, vcf2pos, vcf2alt
                     vcfline_with_greater_dp = self.get_higher_dp_vcfline(self.readlinevcf1, self.readlinevcf2)
                     if vcf1alt != vcf2alt and (self.mode == "alternate" or self.mode == "alternate12" or self.mode == "alternate21") :
                         if self.mode == "alternate":

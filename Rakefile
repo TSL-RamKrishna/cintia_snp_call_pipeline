@@ -6,7 +6,7 @@ ENV["R2"] ? @read2 = ENV["R2"] : nil
 #@read2 ? @R2_dir=ENV["R2"].pathmap("%d") :nil
 #@read2 ? @R2_basename=ENV["R2"].pathmap("%n") : nil
 @read2 ? @R2_basename = "#{@read2}".split(".")[0].split("/")[-1] : nil
-ENV["samplename"] ? @sample=ENV["samplename"] : nil
+#ENV["samplename"] ? @sample=ENV["samplename"] : nil
 ENV["sampleid"] ? @sampleid=ENV["sampleid"] : nil
 ENV["sbulksample"] ? @sbulksample=ENV["sbulksample"] : nil
 ENV["reference"] ? @reference=ENV["reference"] : nil
@@ -341,7 +341,7 @@ namespace :filtersnps do
     sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Rparent614/mappedToRparent/mergedbams/mergedSorted.vcf -2 results/common_Sparent108_#{@sbulksample}_mappedToRparent.vcf --alternate --vcfout --out results/alternate_mappedToRparent.vcf"
   end
   file "results/alternate_mappedToRparent_filtered.vcf" => ["results/alternate_mappedToRparent.vcf"] do
-    sh "python scripts/filter_vcf.py /tsl/scratch/kawashic/Mt_ASR_R_contigs_referenceEdena.fasta.fai results/alternate_mappedToRparent.vcf results/alternate_mappedToRparent_filtered.vcf"
+    sh "python scripts/filter_vcf.py #{@Rreference}.fai results/alternate_mappedToRparent.vcf results/alternate_mappedToRparent_filtered.vcf"
   end
   file "results/common_Sparent108_#{@sbulksample}_mappedToSusparent.vcf" => ["results/Sparent108/mappedToSusparent/mergedbams/mergedSorted.vcf", "results/#{@sbulksample}/mappedToSusparent/mergedbams/mergedSorted.vcf"] do
     sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Sparent108/mappedToSusparent/mergedbams/mergedSorted.vcf -2 results/#{@sbulksample}/mappedToSusparent/mergedbams/mergedSorted.vcf --common --vcfout --refaltsame --out results/common_Sparent108_Sbulk293_mappedToSusparent.vcf"
@@ -350,12 +350,26 @@ namespace :filtersnps do
     sh "source python-2.7.11; python scripts/get_alternate_common_snps.py -1 results/Rparent614/mappedToSusparent/mergedbams/mergedSorted.vcf -2  results/common_Sparent108_#{@sbulksample}_mappedToSusparent.vcf --alternate --vcfout --out results/alternate_mappedToSusparent.vcf"
   end
   file "results/alternate_mappedToSusparent_filtered.vcf" => ["results/alternate_mappedToSusparent.vcf"] do
-    sh "python ~/workarea/kawashic/scripts/filter_vcf.py /tsl/scratch/kawashic/Mt_ASR_R_contigs_referenceEdena.fasta.fai alternate_mappedToSusparent.vcf alternate_mappedToSusparent_filtered.vcf"
+    sh "python scripts/filter_vcf.py #{@Sreference}.fai results/alternate_mappedToSusparent.vcf results/alternate_mappedToSusparent_filtered.vcf"
   end
 
-  task :mappedToRparent => ["results/alternate_mappedToRparent.vcf"]
-  task :mappedToSusparent => ["results/alternate_mappedToSusparent.vcf"]
+  task :mappedToRparent => ["results/alternate_mappedToRparent_filtered.vcf"]
+  task :mappedToSusparent => ["results/alternate_mappedToSusparent_filtered.vcf"]
   task :run => [:mappedToRparent, :mappedToSusparent]
+end
+
+namespace :get_snps_subseq do
+  file "results/alternate_mappedToRparent_filtered_snp_subseq.fasta" => ["filtersnps:mappedToRparent"] do
+    sh "python scripts/get_snp_subsequence.py results/alternate_mappedToRparent_filtered.vcf #{@Rreference} results/alternate_mappedToRparent_filtered_snp_subseq.fasta"
+  end
+  file "results/alternate_mappedToSusparent_filtered_snp_subseq.fasta" => ["filtersnps:mappedToSusparent"] do
+    sh "python scripts/get_snp_subsequence.py results/alternate_mappedToSusparent_filtered.vcf #{@Sreference} results/alternate_mappedToSusparent_filtered_snp_subseq.fasta"
+  end
+
+  task :get_Rparent_snp_subseq => ["results/alternate_mappedToRparent_filtered_snp_subseq.fasta"]
+  task :get_Susparent_snp_subseq => ["results/alternate_mappedToSusparent_filtered_snp_subseq.fasta"]
+
+  multitask :run => [:get_Rparent_snp_subseq, :get_Susparent_snp_subseq]
 end
 
 task :run_pipeline => [ "fastqc:run", "trimmomatic:run", "Bowtie:run", "samtools:run", "VCF:run"] do
